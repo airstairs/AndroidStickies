@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LCD Writing Tablet</title>
+    <style>
+        /* CSS Reset & Global Styling */
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #070a0f;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Outer Tablet Bezel Frame */
+        .tablet-bezel {
+            width: 100vw;
+            height: 100vh;
+            max-width: 800px;
+            max-height: 1100px;
+            background: linear-gradient(165deg, #1e2638 0%, #111622 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), 0 25px 50px rgba(0, 0, 0, 0.8);
+            border: 1px solid #2a3447;
+            padding: 12px;
+        }
+
+        @media (min-width: 500px) {
+            .tablet-bezel {
+                height: 96vh;
+                border-radius: 36px;
+                padding: 20px;
+            }
+        }
+
+        /* Top Bezel Header */
+        .tablet-header {
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 8px;
+            opacity: 0.6;
+        }
+
+        .header-dots {
+            display: flex;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #475569;
+        }
+
+        .brand-title {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Central Canvas Screen Wrapper */
+        .screen-container {
+            flex: 1;
+            width: 100%;
+            background-color: #04070d;
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.95), inset -1px -1px 3px rgba(255, 255, 255, 0.05);
+            margin: 8px 0;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* Screen Erase Flash Effect */
+        .flash-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0;
+            background-color: #22ff77;
+            transition: opacity 0.25s ease-out;
+            z-index: 5;
+        }
+
+        .flash-overlay.active {
+            opacity: 0.6;
+            transition: opacity 0s;
+        }
+
+        /* Canvas Hint Text */
+        .hint-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #334155;
+            font-size: 14px;
+            font-weight: 500;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            letter-spacing: 0.5px;
+        }
+
+        /* Floating Controls Header Buttons */
+        .top-tools {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .icon-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+            transition: all 0.15s ease;
+        }
+
+        .icon-btn:active {
+            transform: scale(0.92);
+            color: #22ff77;
+        }
+
+        /* Settings Drawer Popout Menu */
+        .tools-drawer {
+            position: absolute;
+            top: 58px;
+            right: 12px;
+            width: 200px;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 16px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+            backdrop-filter: blur(12px);
+            opacity: 0;
+            transform: translateY(-8px) scale(0.95);
+            pointer-events: none;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            color: #cbd5e1;
+            font-size: 12px;
+        }
+
+        .tools-drawer.open {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+        }
+
+        .drawer-title {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .color-options {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .color-dot {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+
+        .color-dot.selected {
+            transform: scale(1.2);
+            border-color: #ffffff;
+            box-shadow: 0 0 8px currentColor;
+        }
+
+        .size-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #94a3b8;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: #22ff77;
+            margin-top: 4px;
+            cursor: pointer;
+        }
+
+        /* Bottom Bezel with Circle Erase Button */
+        .tablet-footer {
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Physical Circular Erase Button */
+        .erase-button {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #2a3447 0%, #182030 70%, #0f1420 100%);
+            border: 2px solid #334155;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.2), inset 0 -2px 4px rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            outline: none;
+            transition: transform 0.08s ease, box-shadow 0.08s ease;
+            position: relative;
+        }
+
+        .erase-button:active, .erase-button.pressed {
+            transform: scale(0.92);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.8), inset 0 2px 5px rgba(0,0,0,0.9);
+            background: radial-gradient(circle at 50% 50%, #182030 0%, #0f1420 100%);
+        }
+
+        .erase-inner-ring {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+        }
+
+        .erase-button:active .erase-inner-ring {
+            color: #22ff77;
+        }
+
+        /* Hold Progress Ring Effect on Erase Button */
+        .erase-hold-ring {
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            border-top-color: #22ff77;
+            animation: none;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .erase-button.holding .erase-hold-ring {
+            opacity: 1;
+            animation: spinHold 0.6s linear infinite;
+        }
+
+        @keyframes spinHold {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Long-Press Choices Overlay Menu */
+        .choice-menu-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(4, 7, 13, 0.75);
+            backdrop-filter: blur(6px);
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+            border-radius: inherit;
+        }
+
+        .choice-menu-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .choice-menu-card {
+            background: rgba(17, 22, 34, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 20px;
+            width: 85%;
+            max-width: 280px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+            transform: scale(0.9);
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .choice-menu-backdrop.active .choice-menu-card {
+            transform: scale(1);
+        }
+
+        .choice-menu-title {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+
+        .choice-btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            padding: 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.15s ease;
+        }
+
+        .choice-btn:hover, .choice-btn:active {
+            background: #22ff77;
+            color: #04070d;
+            border-color: #22ff77;
+            transform: scale(0.98);
+        }
+
+        /* Lock Toggle Switch */
+        .lock-container {
+            position: absolute;
+            left: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .switch {
+            width: 34px;
+            height: 18px;
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            position: relative;
+            transition: background-color 0.2s;
+        }
+
+        .switch-handle {
+            width: 12px;
+            height: 12px;
+            background-color: #64748b;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        .lock-container.locked .switch {
+            background-color: #1e293b;
+            border-color: #ef4444;
+        }
+
+        .lock-container.locked .switch-handle {
+            transform: translateX(16px);
+            background-color: #ef4444;
+        }
+
+        .lock-label {
+            font-size: 9px;
+            color: #64748b;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Notification Toast */
+        .toast {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Export Modal Fallback */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-backdrop.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: #111622;
+            border: 1px solid #2a3447;
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 90%;
+            max-height: 85%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8);
+        }
+
+        .modal-img {
+            max-width: 100%;
+            max-height: 50vh;
+            border-radius: 12px;
+            border: 1px solid #334155;
+            object-fit: contain;
+            background-color: #04070d;
+        }
+
+        .modal-desc {
+            color: #94a3b8;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .modal-btn-primary {
+            background: #22ff77;
+            color: #04070d;
+        }
+
+        .modal-btn-secondary {
+            background: #1e293b;
+            color: #94a3b8;
+            border: 1px solid #334155;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Outer Tablet Frame -->
+    <div class="tablet-bezel">
+        
+        <!-- Header -->
+        <div class="tablet-header">
+            <div class="header-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+            <div class="brand-title">airstairs STICKIES</div>
+            <div class="header-dots">
+                <div class="dot"></div>
+            </div>
+        </div>
+
+        <!-- LCD Screen Canvas Container -->
+        <div class="screen-container" id="screenWrapper">
+            <canvas id="lcdCanvas"></canvas>
+            
+            <div class="flash-overlay" id="flashOverlay"></div>
+            <div class="hint-text" id="hintText">Swipe with finger or stylus to draw</div>
+
+            <!-- Top Floating Tools -->
+            <div class="top-tools">
+                <button class="icon-btn" id="saveBtn" title="Save Image">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </button>
+                <button class="icon-btn" id="toggleToolsBtn" title="Settings">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Popout Settings Drawer -->
+            <div class="tools-drawer" id="toolsDrawer">
+                <div>
+                    <div class="drawer-title">LCD Color</div>
+                    <div class="color-options">
+                        <div class="color-dot selected" data-color="#22ff77" style="background-color: #22ff77; color: #22ff77;"></div>
+                        <div class="color-dot" data-color="#00f3ff" style="background-color: #00f3ff; color: #00f3ff;"></div>
+                        <div class="color-dot" data-color="#ffee00" style="background-color: #ffee00; color: #ffee00;"></div>
+                        <div class="color-dot" data-color="rainbow" style="background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);" title="Rainbow"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="size-row">
+                        <span class="drawer-title" style="margin:0;">Stroke</span>
+                        <span id="sizeVal" style="font-weight: bold;">3.5px</span>
+                    </div>
+                    <input type="range" id="sizeSlider" min="1" max="10" step="0.5" value="3.5">
+                </div>
+            </div>
+
+            <!-- Notification Toast -->
+            <div class="toast" id="toast">
+                <span id="toastMsg">Screen Locked 🔒</span>
+            </div>
+        </div>
+
+        <!-- Footer / Erase Controls -->
+        <div class="tablet-footer">
+            
+            <!-- Lock Screen Switch -->
+            <div class="lock-container" id="lockBtn">
+                <div class="switch">
+                    <div class="switch-handle"></div>
+                </div>
+                <span class="lock-label" id="lockLabel">LOCK</span>
+            </div>
+
+            <!-- Single Circular Erase Button -->
+            <button class="erase-button" id="eraseBtn" aria-label="Erase screen">
+                <div class="erase-hold-ring"></div>
+                <div class="erase-inner-ring">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </div>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- Long-Press Choices Overlay Menu -->
+    <div class="choice-menu-backdrop" id="choiceMenuBackdrop">
+        <div class="choice-menu-card">
+            <div class="choice-menu-title">open stickies 2-6</div>
+            <button class="choice-btn" data-pkg="com.xthan.aircontrol">airControl</button>
+            <button class="choice-btn" data-pkg="com.xthan.clickwheelspotifyremote">myNano</button>
+            <button class="choice-btn" data-pkg="com.xthan.neutrino">Neutrino</button>
+            <button class="choice-btn" data-pkg="com.xthan.sketchaetch">Sketch-a-Etch</button>
+            <button class="choice-btn" data-pkg="com.xthan.litebrite">LightBriteHoneycomb</button>
+        </div>
+    </div>
+
+    <!-- Image Save / WebView Fallback Modal -->
+    <div class="modal-backdrop" id="imageModal">
+        <div class="modal-card">
+            <img class="modal-img" id="previewImage" alt="LCD Board Snapshot">
+            <div class="modal-desc">Long-press image or click Download to save file on Android/Acode.</div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" id="closeModalBtn">Close</button>
+                <button class="modal-btn modal-btn-primary" id="directDownloadBtn">Download PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('lcdCanvas');
+        const ctx = canvas.getContext('2d');
+        const screenWrapper = document.getElementById('screenWrapper');
+        const flashOverlay = document.getElementById('flashOverlay');
+        const hintText = document.getElementById('hintText');
+        const eraseBtn = document.getElementById('eraseBtn');
+        const lockBtn = document.getElementById('lockBtn');
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toastMsg');
+        
+        const toggleToolsBtn = document.getElementById('toggleToolsBtn');
+        const toolsDrawer = document.getElementById('toolsDrawer');
+        const saveBtn = document.getElementById('saveBtn');
+        const colorDots = document.querySelectorAll('.color-dot');
+        const sizeSlider = document.getElementById('sizeSlider');
+        const sizeVal = document.getElementById('sizeVal');
+
+        // Choice Menu Elements
+        const choiceMenuBackdrop = document.getElementById('choiceMenuBackdrop');
+        const choiceBtns = document.querySelectorAll('.choice-btn');
+
+        // Modal Elements
+        const imageModal = document.getElementById('imageModal');
+        const previewImage = document.getElementById('previewImage');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const directDownloadBtn = document.getElementById('directDownloadBtn');
+
+        // Drawing State
+        let isDrawing = false;
+        let isLocked = false;
+        let lastX = 0;
+        let lastY = 0;
+        let lastTime = 0;
+        let strokeColor = '#22ff77';
+        let isRainbow = false;
+        let rainbowHue = 0;
+        let strokeThickness = 3.5;
+        let hasContent = false;
+
+        // Vibration throttling for smooth drawing scruffle
+        let lastVibrateTime = 0;
+
+        // Long-Press Timer State
+        let eraseHoldTimer = null;
+        let isHoldingErase = false;
+
+        const STORAGE_KEY = 'lcd_tablet_board_persisted_state';
+        let isInitialized = false;
+
+        // Haptic Feedback Helpers
+        function vibrateThump() {
+            if (navigator.vibrate) {
+                navigator.vibrate(35);
+            }
+        }
+
+        function vibrateScruffle() {
+            if (navigator.vibrate) {
+                const now = Date.now();
+                if (now - lastVibrateTime > 45) { // rate-limit vibration pulses for smooth texture
+                    navigator.vibrate(10);
+                    lastVibrateTime = now;
+                }
+            }
+        }
+
+        function showToast(msg) {
+            toastMsg.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // Save Board State directly into localStorage
+        function saveBoardToStorage() {
+            if (!isInitialized) return;
+            try {
+                const dataUrl = canvas.toDataURL('image/png');
+                localStorage.setItem(STORAGE_KEY, dataUrl);
+            } catch (e) {
+                console.warn('LocalStorage save failed:', e);
+            }
+        }
+
+        // Restore Board State from LocalStorage
+        function restoreBoardFromStorage() {
+            try {
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (savedState) {
+                    const img = new Image();
+                    img.onload = () => {
+                        const rect = screenWrapper.getBoundingClientRect();
+                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                        hasContent = true;
+                        hintText.style.opacity = '0';
+                    };
+                    img.src = savedState;
+                }
+            } catch (e) {
+                console.warn('LocalStorage load failed:', e);
+            }
+        }
+
+        // Setup canvas DPR and handle size changes smoothly
+        function setupCanvas() {
+            const rect = screenWrapper.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            if (canvas.width > 0 && canvas.height > 0) {
+                tempCanvas.getContext('2d').drawImage(canvas, 0, 0);
+            }
+
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+
+            ctx.fillStyle = '#04070d';
+            ctx.fillRect(0, 0, rect.width, rect.height);
+
+            if (tempCanvas.width > 0 && hasContent) {
+                ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width / dpr, tempCanvas.height / dpr, 0, 0, rect.width, rect.height);
+            } else if (!isInitialized) {
+                isInitialized = true;
+                restoreBoardFromStorage();
+            }
+        }
+
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top,
+                time: Date.now()
+            };
+        }
+
+        function startDrawing(e) {
+            e.preventDefault();
+            if (isLocked) return;
+
+            isDrawing = true;
+            const pos = getCoordinates(e);
+            lastX = pos.x;
+            lastY = pos.y;
+            lastTime = pos.time;
+
+            if (!hasContent) {
+                hasContent = true;
+                hintText.style.opacity = '0';
+            }
+        }
+
+        function draw(e) {
+            if (!isDrawing || isLocked) return;
+            e.preventDefault();
+
+            const pos = getCoordinates(e);
+            const dist = Math.hypot(pos.x - lastX, pos.y - lastY);
+            const dt = Math.max(pos.time - lastTime, 1);
+            const speed = dist / dt;
+
+            // Trigger subtle scruffle vibration feedback while writing
+            vibrateScruffle();
+
+            const dynamicWidth = Math.max(strokeThickness * 0.6, Math.min(strokeThickness * 2.0, strokeThickness + speed * 1.1));
+
+            let currentStroke = strokeColor;
+            if (isRainbow) {
+                rainbowHue = (rainbowHue + 4) % 360;
+                currentStroke = `hsl(${rainbowHue}, 100%, 60%)`;
+            }
+
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            
+            const midX = (lastX + pos.x) / 2;
+            const midY = (lastY + pos.y) / 2;
+            ctx.quadraticCurveTo(lastX, lastY, midX, midY);
+
+            ctx.strokeStyle = currentStroke;
+            ctx.lineWidth = dynamicWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            ctx.shadowColor = currentStroke;
+            ctx.shadowBlur = Math.min(dynamicWidth * 1.2, 6);
+
+            ctx.stroke();
+
+            lastX = pos.x;
+            lastY = pos.y;
+            lastTime = pos.time;
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                isDrawing = false;
+                ctx.beginPath();
+                saveBoardToStorage();
+            }
+        }
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDrawing);
+
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        canvas.addEventListener('touchend', stopDrawing);
+
+        function triggerErase() {
+            if (isLocked) {
+                vibrateThump();
+                showToast('Screen Locked 🔒');
+                return;
+            }
+
+            vibrateThump();
+            eraseBtn.classList.add('pressed');
+            setTimeout(() => eraseBtn.classList.remove('pressed'), 120);
+
+            flashOverlay.classList.add('active');
+            setTimeout(() => {
+                const rect = screenWrapper.getBoundingClientRect();
+                ctx.fillStyle = '#04070d';
+                ctx.fillRect(0, 0, rect.width, rect.height);
+                flashOverlay.classList.remove('active');
+                
+                localStorage.removeItem(STORAGE_KEY);
+                hasContent = false;
+                hintText.style.opacity = '1';
+                showToast('Board Cleared ✨');
+            }, 80);
+        }
+
+        function startEraseHold(e) {
+            isHoldingErase = false;
+            eraseBtn.classList.add('holding');
+
+            eraseHoldTimer = setTimeout(() => {
+                isHoldingErase = true;
+                vibrateThump();
+                eraseBtn.classList.remove('holding');
+                choiceMenuBackdrop.classList.add('active');
+            }, 600);
+        }
+
+        function cancelEraseHold() {
+            if (eraseHoldTimer) {
+                clearTimeout(eraseHoldTimer);
+                eraseHoldTimer = null;
+            }
+            eraseBtn.classList.remove('holding');
+        }
+
+        function handleEraseClick(e) {
+            cancelEraseHold();
+            if (!isHoldingErase) {
+                triggerErase();
+            }
+            isHoldingErase = false;
+        }
+
+        eraseBtn.addEventListener('mousedown', startEraseHold);
+        eraseBtn.addEventListener('mouseup', handleEraseClick);
+        eraseBtn.addEventListener('mouseleave', cancelEraseHold);
+
+        eraseBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startEraseHold(e);
+        });
+        eraseBtn.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            handleEraseClick(e);
+        });
+        eraseBtn.addEventListener('touchcancel', cancelEraseHold);
+
+        // Choice Menu Selection Handlers -> Throws Kotlin bridge launch command directly
+        choiceBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                vibrateThump();
+                const pkgName = btn.getAttribute('data-pkg');
+                choiceMenuBackdrop.classList.remove('active');
+                
+                if (window.AndroidBridge && window.AndroidBridge.launchApp) {
+                    window.AndroidBridge.launchApp(pkgName);
+                }
+            });
+        });
+
+        choiceMenuBackdrop.addEventListener('click', (e) => {
+            if (e.target === choiceMenuBackdrop) {
+                choiceMenuBackdrop.classList.remove('active');
+            }
+        });
+
+        lockBtn.addEventListener('click', () => {
+            vibrateThump();
+            isLocked = !isLocked;
+            lockBtn.classList.toggle('locked', isLocked);
+            showToast(isLocked ? 'Screen Locked 🔒' : 'Screen Unlocked 🔓');
+        });
+
+        toggleToolsBtn.addEventListener('click', () => {
+            vibrateThump();
+            toolsDrawer.classList.toggle('open');
+        });
+
+        colorDots.forEach(dot => {
+            dot.addEventListener('click', () => {
+                vibrateThump();
+                colorDots.forEach(d => d.classList.remove('selected'));
+                dot.classList.add('selected');
+
+                const color = dot.getAttribute('data-color');
+                if (color === 'rainbow') {
+                    isRainbow = true;
+                } else {
+                    isRainbow = false;
+                    strokeColor = color;
+                }
+            });
+        });
+
+        sizeSlider.addEventListener('input', (e) => {
+            strokeThickness = parseFloat(e.target.value);
+            sizeVal.textContent = strokeThickness + 'px';
+        });
+
+        // Fixed Save Handler for APK Wrapper & Chrome
+        function handleDownload() {
+            vibrateThump();
+            const dataUrl = canvas.toDataURL('image/png');
+
+            if (window.AndroidBridge && window.AndroidBridge.saveImageToDevice) {
+                window.AndroidBridge.saveImageToDevice(dataUrl);
+            } else {
+                const today = new Date().toISOString().slice(0, 10);
+                const fileName = `lcd-drawing-${today}.png`;
+                
+                previewImage.src = dataUrl;
+                imageModal.classList.add('active');
+
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = dataUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                directDownloadBtn.onclick = () => {
+                    vibrateThump();
+                    const dlLink = document.createElement('a');
+                    dlLink.download = fileName;
+                    dlLink.href = dataUrl;
+                    document.body.appendChild(dlLink);
+                    dlLink.click();
+                    document.body.removeChild(dlLink);
+                };
+
+                setTimeout(() => URL.revokeObjectURL(dataUrl), 60000);
+            }
+        }
+
+        saveBtn.addEventListener('click', handleDownload);
+
+        closeModalBtn.addEventListener('click', () => {
+            vibrateThump();
+            imageModal.classList.remove('active');
+        });
+
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal) {
+                imageModal.classList.remove('active');
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', setupCanvas);
+        window.addEventListener('resize', setupCanvas);
+    </script>
+</body>
+</html>
